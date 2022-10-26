@@ -1,9 +1,10 @@
-import os
-import pandas as pd
-import re
-import requests
 import logging
-from lxml import html, etree
+import os
+import re
+
+import pandas as pd
+import requests
+from lxml import html
 from tqdm import tqdm, trange
 
 logging.basicConfig(level=logging.INFO)
@@ -98,5 +99,7 @@ class Crawler:
 
 if __name__ == '__main__':
     cidobcrawler = Crawler(out_folder='cache')
-    cidobcrawler.get_urls()
-    cidobcrawler.get_detail('cache/urls.csv')
+    # 以下1和2函数可以分别运行。
+    cidobcrawler.get_urls() # 1：获取全部智库报告页url
+    cidobcrawler.get_detail('cache/urls.csv') # 2：访问并解析获智库报告页url，提取目标数据
+
