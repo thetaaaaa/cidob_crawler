@@ -39,7 +39,8 @@ class Crawler:
     def get_lastpagenum(self):
         succeed_page_path = os.path.join(self.out_folder, 'succeed_pages.csv')
         if os.path.exists(succeed_page_path):
-            last_page = pd.read_csv(succeed_page_path, index_col=[0]).values.tolist()[-1]
+            last_page = pd.read_csv(succeed_page_path, index_col=[0]).values.tolist()[-1][0]
+            logging.info('最后获得详情链接的页码：{}'.format(last_page))
             return int(last_page)
         else:
             return 0
@@ -84,10 +85,13 @@ class Crawler:
             os.makedirs(htmlcachepath)
         succeed_detailpageurlpath = os.path.join(self.out_folder, 'succeed_detail_url.csv')  # 已经被爬取过详情的url
         urls = pd.read_csv(urlsfilepath, sep='\t', index_col=[0]).values.tolist()
+        logging.info('已获取的详情页url个数：{}'.format(len(urls)))
         if os.path.exists(succeed_detailpageurlpath):
-            succeed_urls = pd.read_csv(succeed_detailpageurlpath, sep='\t', index_col=[0]).values.tolist()
+            succeed_urls = pd.read_csv(succeed_detailpageurlpath, index_col=[0]).values.tolist()
             for i in succeed_urls:
-                urls.remove(i)
+                if i in urls:
+                    urls.remove(i)
+            logging.info('未获取详情的url个数：{}'.format(len(urls)))
         else:
             succeed_urls = []
 
@@ -118,9 +122,9 @@ class Crawler:
                              columns=['title', 'url', 'content', 'summary', 'author', 'time', 'resource',
                                       'pdf']).to_csv(
                     os.path.join(self.out_folder, 'cidob.csv'), sep='\t')
-                succeed_urls.append(url)
-                pd.DataFrame(succeed_urls).to_csv(os.path.join(self.out_folder, 'succeed_detail_url.csv'), sep='\t')
-
+                succeed_urls.append([url])
+                pd.DataFrame(succeed_urls).to_csv(os.path.join(self.out_folder, 'succeed_detail_url.csv'))
+                time.sleep(1)
             except:
                 pd.DataFrame(result,
                              columns=['title', 'url', 'content', 'summary', 'author', 'time', 'resource',
@@ -131,5 +135,5 @@ class Crawler:
 if __name__ == '__main__':
     cidobcrawler = Crawler(out_folder='cache')
     # 以下1和2函数可以分别运行。
-    cidobcrawler.get_urls()  # 1：获取全部智库报告页url
+    # cidobcrawler.get_urls()  # 1：获取全部智库报告页url
     cidobcrawler.get_detail('cache/urls.csv')  # 2：访问并解析获智库报告页url，提取目标数据
