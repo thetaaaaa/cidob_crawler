@@ -36,12 +36,29 @@ class Crawler:
         logging.info('最大页数：{}'.format(maxpage))
         return int(maxpage)
 
+    def get_lastpagenum(self):
+        succeed_page_path = os.path.join(self.out_folder, 'succeed_pages.csv')
+        if os.path.exists(succeed_page_path):
+            last_page = pd.read_csv(succeed_page_path, index_col=[0]).values.tolist()[-1]
+            return int(last_page)
+        else:
+            return 0
+
     def get_urls(self):
+        maxpage = self.get_maxpage()
+        lastsucceedpage = self.get_lastpagenum()
+        start_craw_page = 0.0
+        if lastsucceedpage:
+            start_craw_page = lastsucceedpage
+        else:
+            start_craw_page = maxpage
+
         url = 'https://www.cidob.org/en/publications/search'
+        succeed_pages = []
         savepath4urls = os.path.join(self.out_folder, 'urls.csv')
         publication_urls = []
-        maxpage = self.get_maxpage()
-        for i in trange(1, int(maxpage)):
+
+        for i in trange(int(start_craw_page), 0, -1):  # 逆向爬取
             try:
                 r = requests.post(url,
                                   headers=self.header,
@@ -55,6 +72,9 @@ class Crawler:
                     r.text)
                 publication_urls += ['https://www.cidob.org' + i for i in incomplete_publication_urls]
                 pd.DataFrame(publication_urls, columns=['url']).to_csv(savepath4urls, sep='\t')
+                succeed_pages.append(i)
+                pd.DataFrame(succeed_pages, columns=['succeedpage_num']).to_csv(
+                    os.path.join(self.out_folder, 'succeed_pages.csv'))
             except:
                 pd.DataFrame(publication_urls, columns=['url']).to_csv(savepath4urls, sep='\t')
 
@@ -62,8 +82,16 @@ class Crawler:
         htmlcachepath = os.path.join('cache', 'html')
         if not os.path.exists(htmlcachepath):
             os.makedirs(htmlcachepath)
-        result = []
+        succeed_detailpageurlpath = os.path.join(self.out_folder, 'succeed_detail_url.csv')  # 已经被爬取过详情的url
         urls = pd.read_csv(urlsfilepath, sep='\t', index_col=[0]).values.tolist()
+        if os.path.exists(succeed_detailpageurlpath):
+            succeed_urls = pd.read_csv(succeed_detailpageurlpath, sep='\t', index_col=[0]).values.tolist()
+            for i in succeed_urls:
+                urls.remove(i)
+        else:
+            succeed_urls = []
+
+        result = []
         for idx, i in tqdm(enumerate(urls)):
             try:
                 r = requests.get(i[0], headers=self.header)
@@ -90,6 +118,9 @@ class Crawler:
                              columns=['title', 'url', 'content', 'summary', 'author', 'time', 'resource',
                                       'pdf']).to_csv(
                     os.path.join(self.out_folder, 'cidob.csv'), sep='\t')
+                succeed_urls.append(url)
+                pd.DataFrame(succeed_urls).to_csv(os.path.join(self.out_folder, 'succeed_detail_url.csv'), sep='\t')
+
             except:
                 pd.DataFrame(result,
                              columns=['title', 'url', 'content', 'summary', 'author', 'time', 'resource',
@@ -100,6 +131,5 @@ class Crawler:
 if __name__ == '__main__':
     cidobcrawler = Crawler(out_folder='cache')
     # 以下1和2函数可以分别运行。
-    cidobcrawler.get_urls() # 1：获取全部智库报告页url
-    cidobcrawler.get_detail('cache/urls.csv') # 2：访问并解析获智库报告页url，提取目标数据
-
+    cidobcrawler.get_urls()  # 1：获取全部智库报告页url
+    cidobcrawler.get_detail('cache/urls.csv')  # 2：访问并解析获智库报告页url，提取目标数据
